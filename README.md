@@ -47,6 +47,14 @@ http://www.e-stat.go.jp/SG1/estat/eStatTopPortal.do
 ]
 ```
 
+## Usage
+1. まずはじめに、このレポジトリをクローンします
+
+```
+git clone https://github.com/yuta-inoue/e-stat.git
+```
+2. 次にクローンしたe-statというディレクトリへ移動します
+
 
 ## Example
 ```example.py
