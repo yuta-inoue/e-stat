@@ -2,7 +2,7 @@
 import urllib2
 import urllib
 import json
-
+import os.path
 from bs4 import BeautifulSoup
 
 class StatsList:
@@ -21,6 +21,7 @@ class StatsList:
     @param search_kind
     @return {'result','statsList'}  
     """
+    print('start downloading stats id list...')
     app_id = self.client['appId']
     if kw is not None:
       kw = urllib.quote(kw.decode('utf-8').encode('utf-8'))
@@ -68,6 +69,7 @@ class StatsList:
     u"""
     統計表IDをもとにメタ情報のリストを返す関数
     """
+    print('start downloading meta data...')
     app_id = self.client['appId']
     url = '%sgetMetaInfo?appId=%s&lang=%s' % (self.BASE_URL,app_id,self.lang) + self.gen_params_meta(stats_data_id)
     req = urllib2.Request(url)
@@ -99,9 +101,9 @@ class StatsList:
         class_obj_item['objects'][class_item['code']] = class_item
       class_obj_list[class_obj_id] = class_obj_item
     return {'result':result,'class_obj_list':class_obj_list}
-  def get_stats_data(self,stats_data_id,start_position,value_list=None):
+  def get_stats_row_data(self,stats_data_id,start_position,value_list=None):
     u"""
-    統計表IDをもとに統計情報を取得する
+    統計表IDをもとに統計情報の元データを取得する
     """
     app_id = self.client['appId']
     url = '%sgetStatsData?limit=10000&appId=%s&lang=%s&metaGetFlg=N&cntGetFlg=N' % (self.BASE_URL,app_id,self.lang) + self.gen_params_meta(stats_data_id)
@@ -129,12 +131,77 @@ class StatsList:
         'value':value.text.encode('utf-8')
       }
       value_list.append(value_item)
-
     next_tag = table_inf.findAll('NEXT_KEY')
     if next_tag:
       if next_tag[0].text:
         self.get_stats_data(stats_data_id,int(next_tag[0].text),value_list)
     return {'result':result,'value_list':value_list}
+  def get_stats_data(self,stats_data_id,work_path,class_obj,start_position,value_list=None):
+    u"""
+    統計表IDをもとに統計情報を取得する
+    """
+    print('start downloading stats data start from %s'%start_position)
+    app_id = self.client['appId']
+    url = '%sgetStatsData?limit=10000&appId=%s&lang=%s&metaGetFlg=N&cntGetFlg=N' % (self.BASE_URL,app_id,self.lang) + self.gen_params_meta(stats_data_id)
+    if start_position > '0':
+      url += ('&startPosition=%s' % start_position)
+    req = urllib2.Request(url)
+    page = urllib2.urlopen(req)
+    soup = BeautifulSoup(page,'xml')
+    result_xml = soup.find('RESULT')
+    result = {"status":result_xml.find('STATUS').text,"date":result_xml.find('DATE').text}
+    data_list = soup.find('STATISTICAL_DATA')
+    table_inf = data_list.find('TABLE_INF')
+    value_tags = data_list.find('DATA_INF').findAll('VALUE')
+    if value_list is None:
+      value_list = []
+    for value_tag in value_tags:
+      row = []
+      for key in class_obj:
+        val = value_tag.get(key)
+        if val in class_obj[key]['objects']:
+          level=''
+          if 'level' in class_obj[key]['objects'][val]:
+            if class_obj[key]['objects'][val]['level'].isdigit():
+              level = ' ' * (int(class_obj[key]['objects'][val]['level'])-1)
+          text = ('%s%s' % (level,class_obj[key]['objects'][val]['name']))
+          row.append(text.encode('utf-8'))
+        else:
+          row.append(val.encode('utf-8'))
+      row.append(value_tag.text.encode('utf-8'))
+      value_list.append(row)
+    next_tag = table_inf.findAll('NEXT_KEY')
+    to_tag = table_inf.findAll('TO_NUMBER')
+    if to_tag:
+      if to_tag[0].text:
+        dir_path = work_path+'.cache/stats/'
+        file_path = dir_path + stats_data_id + '.txt'
+        f = file(file_path,"w+")
+        f.write(to_tag[0].text)
+        f.close()
+    if next_tag:
+      if next_tag[0].text and int(start_position) != int(to_tag[0].text)+1:
+        self.get_stats_data(stats_data_id,work_path,class_obj,int(next_tag[0].text),value_list)
+    return {'result':result,'value_list':value_list}
+  def get_stats_data_class(self,stats_data_id,work_path,start_position='0'):
+    print('start downloading stats data...')
+    if start_position == '0':
+      dir_path = work_path+'.cache/stats/'
+      if os.path.exists(dir_path) is False:
+        os.mkdir(dir_path)
+      file_path = dir_path + stats_data_id + '.txt'
+      if os.path.exists(file_path):
+        f = open(file_path,'r')
+        start_position = f.readline()
+    class_obj = self.get_meta_info(stats_data_id).get('class_obj_list')
+    title_row = []
+    for key in class_obj:
+      title = class_obj[key]['name']
+      title_row.append(title.encode('utf-8'))
+    title_row.append('VALUES')
+    value_list = []
+    value_list.append(title_row)
+    return self.get_stats_data(stats_data_id,work_path,class_obj,start_position,value_list)
   def gen_params_meta(self,stats_data_id):
     u"""
     メタ情報を取得する際のURLパラメータを生成      

@@ -11,6 +11,7 @@ http://www.e-stat.go.jp/SG1/estat/eStatTopPortal.do
 ### module
 * BeautifulSoup4
 * lxml
+* pandas
 
 ### file
 データ取得のために利用するため以下のファイルを用意してください
@@ -54,7 +55,30 @@ http://www.e-stat.go.jp/SG1/estat/eStatTopPortal.do
 git clone https://github.com/yuta-inoue/e-stat.git
 ```
 2. 次にクローンしたe-statというディレクトリへ移動します
+![step2](images/step2.png)
 
+3. 必要なモジュールのインストール
+```
+pip install pandas
+pip isntall BeautifulSoup4
+pip install lxml
+```
+
+4. データファイル作成のためのid.jsonファイルを作成
+![step4](images/step4.png)
+
+5. 統計表IDの一覧取得
+![step5](images/step5.png)
+
+これでワークディレクトリ配下のstatsIdList配下に雇用.jsonが作成される
+![step5-2](images/step5-1.png)
+
+6. 統計データの取得
+![step6](images/step6.png)
+
+これでワークディレクトリ配下のstatsData配下に0000041193.csvが作成される(作成されるcsvファイルの名前は統計表IDに基づくものです)
+
+![step6-2](images/step6-2.png)
 
 ## Example
 ```example.py
